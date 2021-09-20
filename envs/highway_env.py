@@ -7,7 +7,11 @@ from highway_env.envs.common.action import Action
 from highway_env.road.road import Road, RoadNetwork
 from highway_env.utils import near_split
 from highway_env.vehicle.controller import ControlledVehicle
+from highway_env.road.lane import LineType, StraightLane, SineLane
 
+# 0:original 1:static obstacle 2:two lane two car overtaking 3: two lane two car static 4: two lanes overtaking slow car but left car accerlerate
+# 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
+SCENARIO_OPTION = 5
 
 class HighwayEnv(AbstractEnv):
     """
@@ -50,9 +54,22 @@ class HighwayEnv(AbstractEnv):
         self._create_vehicles()
 
     def _create_road(self) -> None:
-        """Create a road composed of straight adjacent lanes."""
-        self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
-                         np_random=self.np_random, record_history=self.config["show_trajectories"])
+        if SCENARIO_OPTION == 0 or SCENARIO_OPTION == 1:
+            """Create a road composed of straight adjacent lanes."""
+            self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
+                             np_random=self.np_random, record_history=self.config["show_trajectories"])
+        elif SCENARIO_OPTION == 2 or SCENARIO_OPTION == 3 or SCENARIO_OPTION == 4 or SCENARIO_OPTION == 5 or SCENARIO_OPTION == 6:
+            # 2 straight line
+            net = RoadNetwork()
+            ends = [150,150]
+            c,s,n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
+            y = [0, 3.5]
+            line_type = [[c,s],[n,c]]
+            for i in range(2):
+                net.add_lane("a", "b",StraightLane([0, y[i]], [sum(ends[:1]), y[i]], line_types=line_type[i]))
+                net.add_lane("b", "c",StraightLane([sum(ends[:1]), y[i]], [sum(ends[:2]), y[i]], line_types=line_type[i]))
+            road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
+            self.road = road
 
     def _create_vehicles(self) -> None:
         """Create some new random vehicles of a given type, and add them on the road."""
@@ -60,20 +77,144 @@ class HighwayEnv(AbstractEnv):
         other_per_controlled = near_split(self.config["vehicles_count"], num_bins=self.config["controlled_vehicles"])
 
         self.controlled_vehicles = []
-        for others in other_per_controlled:
-            controlled_vehicle = self.action_type.vehicle_class.create_random(
+        if SCENARIO_OPTION == 0:
+            for others in other_per_controlled:
+                controlled_vehicle = self.action_type.vehicle_class.create_random(
+                    self.road,
+                    speed=25,
+                    lane_id=self.config["initial_lane_id"],
+                    spacing=self.config["ego_spacing"]
+                )
+                self.controlled_vehicles.append(controlled_vehicle)
+                self.road.vehicles.append(controlled_vehicle)
+
+                for _ in range(others):
+                    vehicle = other_vehicles_type.create_random(self.road, spacing=1 / self.config["vehicles_density"])
+                    vehicle.randomize_behavior()
+                    self.road.vehicles.append(vehicle)
+
+        elif SCENARIO_OPTION == 1:
+            for others in other_per_controlled:
+                controlled_vehicle = self.action_type.vehicle_class.create_random(
+                    self.road,
+                    speed=0,
+                    lane_id=3,
+                    spacing=self.config["ego_spacing"]
+                )
+                self.controlled_vehicles.append(controlled_vehicle)
+                self.road.vehicles.append(controlled_vehicle)
+                for _ in range(1):
+                    self.road.vehicles.append(
+                        other_vehicles_type(self.road, [70, 12], speed=0.0, target_speed=0.0, enable_lane_change= False)
+                        #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                    )
+                    self.road.vehicles.append(
+                        other_vehicles_type(self.road, [100, 4], speed=0.0, target_speed=0.0, enable_lane_change=False)
+                        # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                    )
+
+        elif SCENARIO_OPTION == 2:
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
                 self.road,
-                speed=25,
-                lane_id=self.config["initial_lane_id"],
-                spacing=self.config["ego_spacing"]
+                lane_index=('a','b',1),
+                longitudinal=2
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [20, 0], speed=10.0, target_speed=20.0, enable_lane_change= False)
+                #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [100, 3.5], speed=10.0, target_speed=20.0, enable_lane_change= False, route=[('a','b',1),('b','c',0)])
+                #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+
+        elif SCENARIO_OPTION == 3:
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a', 'b', 0),
+                longitudinal=2
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [60, 0], speed=0, target_speed=0, enable_lane_change=False)
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [120, 3.5], speed=0, target_speed=0, enable_lane_change=False,
+                                    route=[('a', 'b', 1), ('b', 'c', 0)])
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+
+        elif SCENARIO_OPTION == 4:
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a', 'b', 1),
+                longitudinal=2
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [1, 0], speed=10, target_speed=30, enable_lane_change=False)
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [50, 3.5], speed=10, target_speed=15, enable_lane_change=False,
+                                    route=[('a', 'b', 1), ('b', 'c', 1)])
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+
+        elif SCENARIO_OPTION == 5:
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a', 'b', 1),
+                longitudinal=35
             )
             self.controlled_vehicles.append(controlled_vehicle)
             self.road.vehicles.append(controlled_vehicle)
 
-            for _ in range(others):
-                vehicle = other_vehicles_type.create_random(self.road, spacing=1 / self.config["vehicles_density"])
-                vehicle.randomize_behavior()
-                self.road.vehicles.append(vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [50, 0], speed=10, target_speed=20, enable_lane_change=False,
+                                    route=[('a', 'b', 0), ('b', 'c', 1)])
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+        elif SCENARIO_OPTION == 6:
+            d_array = [90,60,45]
+            D_array = [70,50,35]
+            delta_v2_v1_array = [-5,-8,-12]
+            delta_v3_v1_array = [-1,0,10]
+            v1_array = [20,25,30]
+
+            random_d = random.randint(0,2)
+            random_D = random.randint(0,2)
+            random_delta_v2_v1 = random.randint(0,2)
+            random_delta_v3_v1 = random.randint(0,2)
+            random_v1 = random.randint(0,2)
+
+            d = d_array[random_d]
+            D = D_array[random_D]
+            delta_v2_v1 = delta_v2_v1_array[random_delta_v2_v1]
+            delta_v3_v1 = delta_v3_v1_array[random_delta_v3_v1]
+            v1 = v1_array[random_v1]
+            d2 = 90
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a','b',1),
+                longitudinal=d2 - D ,
+                speed=v1
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [d2 - d, 0], speed=v1 + delta_v3_v1, target_speed=v1 + delta_v3_v1, enable_lane_change= False)
+                #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [d2, 3.5], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1, enable_lane_change= False, route=[('a','b',1),('b','c',1)])
+                #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
 
     def _reward(self, action: Action) -> float:
         """
