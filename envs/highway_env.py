@@ -11,7 +11,7 @@ from highway_env.road.lane import LineType, StraightLane, SineLane
 
 # 0:original 1:static obstacle 2:two lane two car overtaking 3: two lane two car static 4: two lanes overtaking slow car but left car accerlerate
 # 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
-SCENARIO_OPTION = 5
+SCENARIO_OPTION = 0
 
 class HighwayEnv(AbstractEnv):
     """
@@ -216,12 +216,16 @@ class HighwayEnv(AbstractEnv):
                 #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
             )
 
-    def _reward(self, action: Action) -> float:
+    def _reward(self, action: Action, is_safe=3) -> float:
         """
         The reward is defined to foster driving at high speed, on the rightmost lanes, and to avoid collisions.
         :param action: the last action performed
         :return: the corresponding reward
         """
+        r_unsafe = -0.8
+        if is_safe == 0:
+            return r_unsafe
+
         neighbours = self.road.network.all_side_lanes(self.vehicle.lane_index)
         lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) \
             else self.vehicle.lane_index[2]

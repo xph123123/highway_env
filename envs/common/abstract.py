@@ -149,7 +149,7 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def _info(self, obs: Observation, action: Action) -> dict:
+    def _info(self, obs: Observation, action: Action, is_safe) -> dict:
         """
         Return a dictionary of additional information
 
@@ -161,6 +161,7 @@ class AbstractEnv(gym.Env):
             "speed": self.vehicle.speed,
             "crashed": self.vehicle.crashed,
             "action": action,
+            "is_safe": is_safe,
         }
         try:
             info["cost"] = self._cost(action)
@@ -201,7 +202,7 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def step(self, action: Action) -> Tuple[Observation, float, bool, dict]:
+    def step(self, action: Action, is_safe=3) -> Tuple[Observation, float, bool, dict]:
         """
         Perform an action and step the environment dynamics.
 
@@ -218,9 +219,9 @@ class AbstractEnv(gym.Env):
         self._simulate(action)
 
         obs = self.observation_type.observe()
-        reward = self._reward(action)
+        reward = self._reward(action, is_safe)
         terminal = self._is_terminal()
-        info = self._info(obs, action)
+        info = self._info(obs, action, is_safe)
 
         return obs, reward, terminal, info
 
