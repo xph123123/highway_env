@@ -1,6 +1,6 @@
 import numpy as np
 from gym.envs.registration import register
-
+import random
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.envs.common.action import Action
@@ -222,7 +222,7 @@ class HighwayEnv(AbstractEnv):
         :param action: the last action performed
         :return: the corresponding reward
         """
-        r_unsafe = -0.8
+        r_unsafe = -0.2
         if is_safe == 0:
             return r_unsafe
 

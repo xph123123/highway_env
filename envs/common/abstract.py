@@ -202,7 +202,7 @@ class AbstractEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def step(self, action: Action, is_safe=3) -> Tuple[Observation, float, bool, dict]:
+    def step(self, action: Action, is_safe) -> Tuple[Observation, float, bool, dict]:
         """
         Perform an action and step the environment dynamics.
 
