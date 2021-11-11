@@ -146,7 +146,7 @@ class KinematicObservation(ObservationType):
                  order: str = "sorted",
                  normalize: bool = True,
                  clip: bool = True,
-                 see_behind: bool = False,
+                 see_behind: bool = True,
                  observe_intentions: bool = False,
                  **kwargs: dict) -> None:
         """
@@ -227,6 +227,7 @@ class KinematicObservation(ObservationType):
         if self.order == "shuffled":
             self.env.np_random.shuffle(obs[1:])
         # Flatten
+        obs[0,1] = 0.0
         return obs
 
 

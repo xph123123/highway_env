@@ -11,7 +11,8 @@ from highway_env.road.lane import LineType, StraightLane, SineLane
 
 # 0:original 1:static obstacle 2:two lane two car overtaking 3: two lane two car static 4: two lanes overtaking slow car but left car accerlerate
 # 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
-SCENARIO_OPTION = 0
+# 7：(eight choices low speed) monte carlo random generate two lane two cars overtaking
+SCENARIO_OPTION = 7
 
 class HighwayEnv(AbstractEnv):
     """
@@ -58,7 +59,7 @@ class HighwayEnv(AbstractEnv):
             """Create a road composed of straight adjacent lanes."""
             self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
                              np_random=self.np_random, record_history=self.config["show_trajectories"])
-        elif SCENARIO_OPTION == 2 or SCENARIO_OPTION == 3 or SCENARIO_OPTION == 4 or SCENARIO_OPTION == 5 or SCENARIO_OPTION == 6:
+        elif SCENARIO_OPTION == 2 or SCENARIO_OPTION == 3 or SCENARIO_OPTION == 4 or SCENARIO_OPTION == 5 or SCENARIO_OPTION == 6 or SCENARIO_OPTION == 7:
             # 2 straight line
             net = RoadNetwork()
             ends = [150,150]
@@ -215,6 +216,43 @@ class HighwayEnv(AbstractEnv):
                 other_vehicles_type(self.road, [d2, 3.5], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1, enable_lane_change= False, route=[('a','b',1),('b','c',1)])
                 #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
             )
+        elif SCENARIO_OPTION == 7:
+            d_array = [50, 45, 40, 35, 30, 25, 20, 15]
+            D_array = [35, 30, 25, 22.5, 20, 17.5, 15, 10]
+            delta_v2_v1_array = [0.2, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0, -4.0]
+            delta_v3_v1_array = [-1, -0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+            v1_array = [3, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0]
+
+            random_d = random.randint(0, 7)
+            random_D = random.randint(0, 7)
+            random_delta_v2_v1 = random.randint(0, 8)
+            random_delta_v3_v1 = random.randint(0, 7)
+            random_v1 = random.randint(0, 16)
+
+            d = d_array[random_d]
+            D = D_array[random_D]
+            delta_v2_v1 = delta_v2_v1_array[random_delta_v2_v1]
+            delta_v3_v1 = delta_v3_v1_array[random_delta_v3_v1]
+            v1 = v1_array[random_v1]
+            d2 = 70
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a', 'b', 1),
+                longitudinal=d2 - D,
+                speed=v1
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [d2 - d, 0], speed=v1 + delta_v3_v1, target_speed=v1 + delta_v3_v1,
+                                    enable_lane_change=False)
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
+            self.road.vehicles.append(
+                other_vehicles_type(self.road, [d2, 3.5], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
+                                    enable_lane_change=False, route=[('a', 'b', 1), ('b', 'c', 1)])
+                # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+            )
 
     def _reward(self, action: Action, is_safe=3) -> float:
         """
@@ -245,7 +283,8 @@ class HighwayEnv(AbstractEnv):
         """The episode is over if the ego vehicle crashed or the time is out."""
         return self.vehicle.crashed or \
             self.steps >= self.config["duration"] or \
-            (self.config["offroad_terminal"] and not self.vehicle.on_road)
+            (self.config["offroad_terminal"] and not self.vehicle.on_road) or \
+            self.steps >= 20
 
     def _cost(self, action: int) -> float:
         """The cost signal is the occurrence of collision."""
