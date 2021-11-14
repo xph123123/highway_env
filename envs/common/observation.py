@@ -227,7 +227,8 @@ class KinematicObservation(ObservationType):
         if self.order == "shuffled":
             self.env.np_random.shuffle(obs[1:])
         # Flatten
-        obs[0,1] = 0.0
+        obs[0, 1] = 0.0
+        obs[0, 2] = 0.0
         return obs
 
 

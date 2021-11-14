@@ -24,7 +24,7 @@ class Vehicle(RoadObject):
     """ Vehicle width [m] """
     DEFAULT_SPEEDS = [23, 25]
     """ Range for random initial speeds [m/s] """
-    MAX_SPEED = 40.
+    MAX_SPEED = 14.0
     """ Maximum reachable speed [m/s] """
     HISTORY_SIZE = 30
     """ Length of the vehicle state history, for trajectory display"""
