@@ -7,6 +7,11 @@ from highway_env.road.road import Road, LaneIndex, Route
 from highway_env.types import Vector
 from highway_env.vehicle.kinematics import Vehicle
 
+import osqp
+import numpy as np
+import scipy as sp
+from scipy import sparse
+import math
 
 class ControlledVehicle(Vehicle):
     """
@@ -28,8 +33,8 @@ class ControlledVehicle(Vehicle):
     KP_A = 1 / TAU_ACC
     KP_HEADING = 1 / TAU_HEADING
     KP_LATERAL = 1 / TAU_LATERAL  # [1/s]
-    MAX_STEERING_ANGLE = np.pi / 30  # [rad]
-    DELTA_SPEED = 2  # [m/s]
+    MAX_STEERING_ANGLE = np.pi / 3  # [rad]
+    DELTA_SPEED = 1  # [m/s]
 
     def __init__(self,
                  road: Road,
@@ -43,6 +48,7 @@ class ControlledVehicle(Vehicle):
         self.target_lane_index = target_lane_index or self.lane_index
         self.target_speed = target_speed or self.speed
         self.route = route
+        self.steer_angle_filter = 0.0
 
     @classmethod
     def create_from(cls, vehicle: "ControlledVehicle") -> "ControlledVehicle":
@@ -99,8 +105,7 @@ class ControlledVehicle(Vehicle):
             target_lane_index = _from, _to, np.clip(_id - 1, 0, len(self.road.network.graph[_from][_to]) - 1)
             if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
                 self.target_lane_index = target_lane_index
-
-        action = {"steering": self.steering_control(self.target_lane_index),
+        action = {"steering": self.steering_control_test(self.target_lane_index),
                   "acceleration": self.speed_control(self.target_speed)}
         action['steering'] = np.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         super().act(action)
@@ -142,6 +147,125 @@ class ControlledVehicle(Vehicle):
                                            -1, 1))
         steering_angle = np.clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         return float(steering_angle)
+
+    def steering_control_test(self, target_lane_index: LaneIndex) -> float:
+        """
+        Steer the vehicle to follow the center of an given lane.
+
+        1. Lateral position is controlled by a proportional controller yielding a lateral speed command
+        2. Lateral speed command is converted to a heading reference
+        3. Heading is controlled by a proportional controller yielding a heading rate command
+        4. Heading rate command is converted to a steering angle
+
+        :param target_lane_index: index of the lane to follow
+        :return: a steering wheel angle command [rad]
+        """
+        target_lane = self.road.network.get_lane(target_lane_index)
+        lane_coords = target_lane.local_coordinates(self.position)
+        lane_next_coords = lane_coords[0] + self.speed * self.TAU_PURSUIT
+        lane_future_heading = target_lane.heading_at(lane_next_coords)
+
+        # Lateral position control
+        lateral_speed_command = - self.KP_LATERAL * lane_coords[1]
+        # Lateral speed to heading
+        heading_command = np.arcsin(np.clip(lateral_speed_command / utils.not_zero(self.speed), -1, 1))
+        heading_ref = lane_future_heading + np.clip(heading_command, -np.pi / 4, np.pi / 4)
+        # Heading control
+        heading_rate_command = self.KP_HEADING * utils.wrap_to_pi(heading_ref - self.heading)
+        # Heading rate to steering angle
+        steering_angle = np.arcsin(np.clip(self.LENGTH / 2 / utils.not_zero(self.speed) * heading_rate_command,
+                                           -1, 1))
+        steering_angle = np.clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
+
+        init_l = lane_coords[1]
+        init_yaw_error = utils.wrap_to_pi(lane_future_heading - self.heading)
+
+        # print('init_l: ', "%.2f" % init_l)
+        # print('init_yaw_error: ', init_yaw_error)
+
+        Ad = sparse.csc_matrix([
+            [1., 0.2],
+            [0., 1.]
+        ])
+        Bd = sparse.csc_matrix([
+            [0.],
+            [0.2]])
+        [nx, nu] = Bd.shape
+        # print(nx)
+        # print(nu)
+        # Constraints
+        u0 = 0.0
+        umin = np.array([-0.03]) - u0
+        umax = np.array([0.03]) - u0
+        xmin = np.array([-10.0, -np.pi])
+        xmax = np.array([10.0, np.pi])
+
+        # Objective function
+        Q = sparse.diags([10., 1.])
+        QN = Q
+        R = 5000 * sparse.eye(1)
+
+        # Initial and reference states
+        x0 = np.zeros(2)
+        x0[0] = init_l
+        x0[1] = init_yaw_error * -1.0
+        xr = np.array([0.0, 0.])
+
+        # Prediction horizon
+        N = 500
+
+        # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
+        # - quadratic objective
+        P = sparse.block_diag([sparse.kron(sparse.eye(N), Q), QN,
+                               sparse.kron(sparse.eye(N), R)], format='csc')
+        # - linear objective
+        q = np.hstack([np.kron(np.ones(N), -Q.dot(xr)), -QN.dot(xr),
+                       np.zeros(N * nu)])
+        # - linear dynamics
+        Ax = sparse.kron(sparse.eye(N + 1), -sparse.eye(nx)) + sparse.kron(sparse.eye(N + 1, k=-1), Ad)
+        Bu = sparse.kron(sparse.vstack([sparse.csc_matrix((1, N)), sparse.eye(N)]), Bd)
+        Aeq = sparse.hstack([Ax, Bu])
+        leq = np.hstack([-x0, np.zeros(N * nx)])
+        ueq = leq
+        # - input and state constraints
+        Aineq = sparse.eye((N + 1) * nx + N * nu)
+        lineq = np.hstack([np.kron(np.ones(N + 1), xmin), np.kron(np.ones(N), umin)])
+        uineq = np.hstack([np.kron(np.ones(N + 1), xmax), np.kron(np.ones(N), umax)])
+        # - OSQP constraints
+        A = sparse.vstack([Aeq, Aineq], format='csc')
+        l = np.hstack([leq, lineq])
+        u = np.hstack([ueq, uineq])
+
+        # Create an OSQP object
+        prob = osqp.OSQP()
+
+        # Setup workspace
+        prob.setup(P, q, A, l, u, warm_start=True)
+        res = prob.solve()
+
+        # Check solver status
+        if res.info.status != 'solved':
+            raise ValueError('OSQP did not solve the problem!')
+        control_cmd = np.zeros(nu * N);
+        first_control = nx * (N + 1)
+        for i in range(nu * N):
+            control_cmd[i] = res.x[i + first_control]
+        # print(control_cmd)
+        # print(control_cmd[0])
+
+        wheel_base = 2.5
+        optimal_steering_angle = math.atan(wheel_base * control_cmd[1])
+        # print('optimal_steering_angle: ', optimal_steering_angle)
+        # print('steering_angle: ', steering_angle)
+        self.steer_angle_filter = self.filter_angle(optimal_steering_angle, self.steer_angle_filter, 0.2)
+
+        # print("steer_angle_filter: ", self.steer_angle_filter)
+        steering_angle = optimal_steering_angle
+        return float(steering_angle)
+
+    def filter_angle(self, value, old_value, alfa) -> float:
+        filter_value = value * alfa + (1 - alfa) * old_value
+        return float(filter_value)
 
     def speed_control(self, target_speed: float) -> float:
         """

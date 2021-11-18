@@ -45,7 +45,9 @@ class HighwayEnv(AbstractEnv):
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
                                        # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,   # The reward received at each lane change action.
+            "ttc_reward": 0,
             "reward_speed_range": [20, 30] if SCENARIO_OPTION != 7 else [2, 12],
+            "reward_ttc_range": [1.5, 5.0],
             "offroad_terminal": False
         })
         return config
@@ -280,6 +282,14 @@ class HighwayEnv(AbstractEnv):
         r_unsafe = -0.2
         if is_safe == 0:
             return r_unsafe
+        front_veh, rear_veh = self.road.neighbour_vehicles(self.vehicle)
+        scaled_ttc = 0
+        if front_veh:
+            delta_dis = front_veh.position[0] - self.vehicle.position[0] - front_veh.LENGTH / 2 + self.vehicle.LENGTH / 2
+            ttc = delta_dis / self.vehicle.velocity[0]
+            scaled_ttc = utils.lmap(ttc, self.config["reward_ttc_range"], [0, 1])
+        else:
+            scaled_ttc = self.config["reward_ttc_range"][1]
 
         neighbours = self.road.network.all_side_lanes(self.vehicle.lane_index)
         lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) \
@@ -288,10 +298,11 @@ class HighwayEnv(AbstractEnv):
         reward = \
             + self.config["collision_reward"] * self.vehicle.crashed \
             + self.config["right_lane_reward"] * lane / max(len(neighbours) - 1, 1) \
-            + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)
+            + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) \
+            + self.config["ttc_reward"] * np.clip(scaled_ttc, 0, 1)
         reward = utils.lmap(reward,
                           [self.config["collision_reward"],
-                           self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+                           self.config["high_speed_reward"] + self.config["right_lane_reward"] + self.config["ttc_reward"]],
                           [0, 1])
         reward = 0 if not self.vehicle.on_road else reward
         return reward
