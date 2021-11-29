@@ -33,8 +33,8 @@ class ControlledVehicle(Vehicle):
     KP_A = 1 / TAU_ACC
     KP_HEADING = 1 / TAU_HEADING
     KP_LATERAL = 1 / TAU_LATERAL  # [1/s]
-    MAX_STEERING_ANGLE = np.pi / 70  # [rad]
-    DELTA_SPEED = 3  # [m/s]
+    MAX_STEERING_ANGLE = np.pi / 3  # [rad]
+    DELTA_SPEED = 1  # [m/s]
 
     def __init__(self,
                  road: Road,
@@ -105,7 +105,7 @@ class ControlledVehicle(Vehicle):
             target_lane_index = _from, _to, np.clip(_id - 1, 0, len(self.road.network.graph[_from][_to]) - 1)
             if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
                 self.target_lane_index = target_lane_index
-        action = {"steering": self.steering_control(self.target_lane_index),
+        action = {"steering": self.steering_control_test(self.target_lane_index),
                   "acceleration": self.speed_control(self.target_speed)}
         action['steering'] = np.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         super().act(action)
@@ -212,7 +212,7 @@ class ControlledVehicle(Vehicle):
         xr = np.array([0.0, 0.])
 
         # Prediction horizon
-        N = 600
+        N = 500
 
         # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
         # - quadratic objective
