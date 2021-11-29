@@ -170,6 +170,8 @@ class KinematicObservation(ObservationType):
         self.clip = clip
         self.see_behind = see_behind
         self.observe_intentions = observe_intentions
+        self.FRONT_PERCEPTION_DISTANCE = 70
+        self.BEHIND_PERCEPTION_DISTANCE = 20
 
     def space(self) -> spaces.Space:
         return spaces.Box(shape=(self.vehicles_count, len(self.features)), low=-1, high=1, dtype=np.float32)
@@ -204,7 +206,8 @@ class KinematicObservation(ObservationType):
         df = pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features]
         # Add nearby traffic
         close_vehicles = self.env.road.close_vehicles_to(self.observer_vehicle,
-                                                         self.env.PERCEPTION_DISTANCE,
+                                                         self.FRONT_PERCEPTION_DISTANCE,
+                                                         self.BEHIND_PERCEPTION_DISTANCE,
                                                          count=self.vehicles_count - 1,
                                                          see_behind=self.see_behind,
                                                          sort=self.order == "sorted")

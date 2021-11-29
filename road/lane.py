@@ -12,7 +12,7 @@ class AbstractLane(object):
     """A lane on the road, described by its central curve."""
 
     metaclass__ = ABCMeta
-    DEFAULT_WIDTH: float = 4
+    DEFAULT_WIDTH: float = 3.5
     VEHICLE_LENGTH: float = 5
     length: float = 0
     line_types: List["LineType"]

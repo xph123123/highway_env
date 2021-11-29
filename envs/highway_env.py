@@ -46,6 +46,7 @@ class HighwayEnv(AbstractEnv):
                                        # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,   # The reward received at each lane change action.
             "ttc_reward": 0,
+            "meaningless_lane_change_reward": 0,
             "reward_speed_range": [20, 30] if SCENARIO_OPTION != 7 else [2, 12],
             "reward_ttc_range": [1.5, 5.0],
             "offroad_terminal": False
@@ -219,19 +220,20 @@ class HighwayEnv(AbstractEnv):
                 #other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
             )
         elif SCENARIO_OPTION == 7:
-            d_array = [45, 40, 35, 30, 25, 20, 15, 10, 5, 0]
-            D_array = [30, 27.5, 25, 22.5, 20, 17.5, 15, 12.5, 10, 5]
+            d_array = [45, 40, 35, 30, 25, 20, 15, 10, 5, 0, -2]
+            D_array = [50, 40, 30, 27.5, 25, 22.5, 20, 15, 10, 7.5]
             delta_v2_v1_array = [0.8, 0.3, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0, -4.0]
             delta_v3_v1_array = [-2.5, -2.0, -1.5, -1.0, -0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
             v1_array = [3, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0]
             init_v1_y = [2.5, 3.0, 3.5, 4]
 
-            random_d = random.randint(0, 9)
+            random_d = random.randint(0, 10)
             random_D = random.randint(0, 9)
             random_delta_v2_v1 = random.randint(0, 9)
             random_delta_v3_v1 = random.randint(0, 10)
             random_v1 = random.randint(0, 16)
             random_childscenario = random.randint(0, 9)
+            # random_childscenario = 3
             random_init_v1_y = random.randint(0, 3)
             # random_childscenario = 0
             d = d_array[random_d]
@@ -300,8 +302,12 @@ class HighwayEnv(AbstractEnv):
             + self.config["right_lane_reward"] * lane / max(len(neighbours) - 1, 1) \
             + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) \
             + self.config["ttc_reward"] * np.clip(scaled_ttc, 0, 1)
+        # if action == 0 or action == 2:
+        #     reward += self.config["lane_change_reward"]
+        # if front_veh is None and self.vehicle.lane_index[2] == 1 and action == 0:
+        #     reward += self.config["meaningless_lane_change_reward"]
         reward = utils.lmap(reward,
-                          [self.config["collision_reward"],
+                          [self.config["collision_reward"] + self.config["lane_change_reward"] + self.config["meaningless_lane_change_reward"],
                            self.config["high_speed_reward"] + self.config["right_lane_reward"] + self.config["ttc_reward"]],
                           [0, 1])
         reward = 0 if not self.vehicle.on_road else reward
@@ -312,7 +318,7 @@ class HighwayEnv(AbstractEnv):
         return self.vehicle.crashed or \
             self.steps >= self.config["duration"] or \
             (self.config["offroad_terminal"] and not self.vehicle.on_road) or \
-            self.steps >= 20
+            self.steps >= 30
 
     def _cost(self, action: int) -> float:
         """The cost signal is the occurrence of collision."""

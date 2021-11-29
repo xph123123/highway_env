@@ -274,13 +274,27 @@ class Road(object):
         self.np_random = np_random if np_random else np.random.RandomState()
         self.record_history = record_history
 
-    def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', distance: float, count: Optional[int] = None,
-                          see_behind: bool = True, sort: bool = True) -> object:
-        vehicles = [v for v in self.vehicles
-                    if np.linalg.norm(v.position - vehicle.position) < distance
-                    and v is not vehicle
-                    and (see_behind or -2 * vehicle.LENGTH < vehicle.lane_distance_to(v))]
+    # def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', distance: float, count: Optional[int] = None,
+    #                       see_behind: bool = True, sort: bool = True) -> object:
+    #     vehicles = [v for v in self.vehicles
+    #                 if np.linalg.norm(v.position - vehicle.position) < distance
+    #                 and v is not vehicle
+    #                 and (see_behind or -2 * vehicle.LENGTH < vehicle.lane_distance_to(v))]
+    #
+    #     if sort:
+    #         vehicles = sorted(vehicles, key=lambda v: abs(vehicle.lane_distance_to(v)))
+    #     if count:
+    #         vehicles = vehicles[:count]
+    #     return vehicles
 
+    def close_vehicles_to(self, vehicle: 'kinematics.Vehicle', front_distance: float, behind_distance: float, count: Optional[int] = None,
+                          see_behind: bool = True, sort: bool = True) -> object:
+        vehicles = []
+        for v in self.vehicles:
+            if v is not vehicle \
+            and (v.position[0] - vehicle.position[0] >= 0 and np.linalg.norm(v.position - vehicle.position) <= front_distance \
+                 or v.position[0] - vehicle.position[0] < 0 and np.linalg.norm(v.position - vehicle.position) <= behind_distance):
+                vehicles.append(v)
         if sort:
             vehicles = sorted(vehicles, key=lambda v: abs(vehicle.lane_distance_to(v)))
         if count:
