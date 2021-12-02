@@ -229,7 +229,7 @@ class HighwayEnv(AbstractEnv):
 
             random_d = random.randint(0, 10)
             random_D = random.randint(0, 13)
-            random_delta_v2_v1 = random.randint(0, 9)
+            random_delta_v2_v1 = random.randint(0, 8)
             random_delta_v3_v1 = random.randint(0, 10)
             random_v1 = random.randint(0, 16)
             random_childscenario = random.randint(0, 9)
