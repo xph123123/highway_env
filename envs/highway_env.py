@@ -221,19 +221,19 @@ class HighwayEnv(AbstractEnv):
             )
         elif SCENARIO_OPTION == 7:
             d_array = [45, 40, 35, 30, 25, 20, 15, 10, 5, 0, -2]
-            D_array = [50, 40, 30, 27.5, 25, 22.5, 20, 15, 10, 7.5]
-            delta_v2_v1_array = [0.8, 0.3, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0, -4.0]
+            D_array = [55, 50, 45, 40, 37.5, 35, 30, 27.5, 25, 22.5, 20, 15, 10, 7.5]
+            delta_v2_v1_array = [0.8, 0.3, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0]
             delta_v3_v1_array = [-2.5, -2.0, -1.5, -1.0, -0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
             v1_array = [3, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0]
             init_v1_y = [2.5, 3.0, 3.5, 4]
 
             random_d = random.randint(0, 10)
-            random_D = random.randint(0, 9)
+            random_D = random.randint(0, 13)
             random_delta_v2_v1 = random.randint(0, 9)
             random_delta_v3_v1 = random.randint(0, 10)
             random_v1 = random.randint(0, 16)
             random_childscenario = random.randint(0, 9)
-            # random_childscenario = 3
+            # random_childscenario = 0
             random_init_v1_y = random.randint(0, 3)
             # random_childscenario = 0
             d = d_array[random_d]

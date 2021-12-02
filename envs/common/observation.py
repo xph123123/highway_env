@@ -220,12 +220,15 @@ class KinematicObservation(ObservationType):
         if close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
             conv = np.array([[0.1, 0.0], [0.0, 0.3]])
+            conv_vel = np.array([[0.2, 0.0], [0.0, 0.1]])
             for v in close_vehicles[-self.vehicles_count + 1:]:
                 temp_record = pd.DataFrame.from_records(
                     [v.to_dict(origin, observe_intentions=self.observe_intentions)])[self.features]
                 mean_record = np.array([temp_record.iat[0,1],temp_record.iat[0,2]])
+                mean_record_vel = np.array([temp_record.iat[0,3],temp_record.iat[0,4]])
                 copy_record = temp_record.copy(deep=True)
                 copy_record.iat[0, 1],  copy_record.iat[0, 2]= np.random.multivariate_normal(mean=mean_record, cov=conv, size=1).T
+                copy_record.iat[0, 3],  copy_record.iat[0, 4]= np.random.multivariate_normal(mean=mean_record_vel, cov=conv_vel, size=1).T
                 df = df.append(copy_record.copy(deep=True))
         # Normalize and clip
         if self.normalize:
