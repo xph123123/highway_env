@@ -12,6 +12,7 @@ from highway_env.road.lane import LineType, StraightLane, SineLane
 # 0:original 1:static obstacle 2:two lane two car overtaking 3: two lane two car static 4: two lanes overtaking slow car but left car accerlerate
 # 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
 # 7：(eight choices low speed) monte carlo random generate two lane two cars overtaking
+# 8:fixed order to compare
 SCENARIO_OPTION = 7
 
 class HighwayEnv(AbstractEnv):
@@ -62,7 +63,7 @@ class HighwayEnv(AbstractEnv):
             """Create a road composed of straight adjacent lanes."""
             self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
                              np_random=self.np_random, record_history=self.config["show_trajectories"])
-        elif SCENARIO_OPTION == 2 or SCENARIO_OPTION == 3 or SCENARIO_OPTION == 4 or SCENARIO_OPTION == 5 or SCENARIO_OPTION == 6 or SCENARIO_OPTION == 7:
+        elif SCENARIO_OPTION == 2 or SCENARIO_OPTION == 3 or SCENARIO_OPTION == 4 or SCENARIO_OPTION == 5 or SCENARIO_OPTION == 6:
             # 2 straight line
             net = RoadNetwork()
             ends = [150,150]
@@ -72,6 +73,16 @@ class HighwayEnv(AbstractEnv):
             for i in range(2):
                 net.add_lane("a", "b",StraightLane([0, y[i]], [sum(ends[:1]), y[i]], line_types=line_type[i]))
                 net.add_lane("b", "c",StraightLane([sum(ends[:1]), y[i]], [sum(ends[:2]), y[i]], line_types=line_type[i]))
+            road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
+            self.road = road
+        elif SCENARIO_OPTION == 7:
+            net = RoadNetwork()
+            end = 400
+            c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
+            y = [0, 3.5]
+            line_type = [[c, s], [n, c]]
+            for i in range(2):
+                net.add_lane("a", "b", StraightLane([0, y[i]], [end, y[i]], line_types=line_type[i]))
             road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
             self.road = road
 
@@ -259,21 +270,24 @@ class HighwayEnv(AbstractEnv):
                 )
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
-                                        enable_lane_change=False, route=[('a', 'b', 1), ('b', 'c', 1)])
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
             elif random_childscenario >= 1 and random_childscenario < 4:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
-                                        enable_lane_change=False, route=[('a', 'b', 1), ('b', 'c', 1)])
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
             elif random_childscenario == 0:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=0, target_speed=0,
-                                        enable_lane_change=False, route=[('a', 'b', 1), ('b', 'c', 1)])
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
+        elif SCENARIO_OPTION == 8:
+            xxxxx=1
+
 
     def _reward(self, action: Action, is_safe=3) -> float:
         """
@@ -287,7 +301,7 @@ class HighwayEnv(AbstractEnv):
         front_veh, rear_veh = self.road.neighbour_vehicles(self.vehicle)
         scaled_ttc = 0
         if front_veh:
-            delta_dis = front_veh.position[0] - self.vehicle.position[0] - front_veh.LENGTH / 2 + self.vehicle.LENGTH / 2
+            delta_dis = front_veh.position[0] - self.vehicle.position[0] - front_veh.LENGTH / 2 - self.vehicle.LENGTH / 2
             ttc = delta_dis / self.vehicle.velocity[0]
             scaled_ttc = utils.lmap(ttc, self.config["reward_ttc_range"], [0, 1])
         else:
