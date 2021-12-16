@@ -344,7 +344,7 @@ class HighwayEnv(AbstractEnv):
             )
             self.controlled_vehicles.append(controlled_vehicle)
             self.road.vehicles.append(controlled_vehicle)
-            if random_childscenario >= 4:
+            if random_childscenario >= 3:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2 - d, 0], speed=v1 + delta_v3_v1, target_speed=v1 + delta_v3_v1,
                                         enable_lane_change=False)
@@ -355,7 +355,7 @@ class HighwayEnv(AbstractEnv):
                                         enable_lane_change=False, route=[('a', 'b', 1)])
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
-            elif random_childscenario >= 1 and random_childscenario < 4:
+            elif random_childscenario >= 1 and random_childscenario < 3:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
                                         enable_lane_change=False, route=[('a', 'b', 1)])
