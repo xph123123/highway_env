@@ -72,7 +72,7 @@ class HighwayEnv(AbstractEnv):
             "lane_change_reward": 0,   # The reward received at each lane change action.
             "ttc_reward": 0,
             "meaningless_lane_change_reward": 0,
-            "reward_speed_range": [20, 30] if SCENARIO_OPTION != 7 else [2, 12],
+            "reward_speed_range": [20, 30] if (SCENARIO_OPTION != 7 and SCENARIO_OPTION !=8)  else [0, 14],
             "reward_ttc_range": [1.5, 5.0],
             "offroad_terminal": False
         })
@@ -268,7 +268,7 @@ class HighwayEnv(AbstractEnv):
             random_delta_v3_v1 = random.randint(0, 10)
             random_v1 = random.randint(0, 16)
             random_childscenario = random.randint(0, 9)
-            # random_childscenario = 8
+            # random_childscenario = 2
             random_init_v1_y = random.randint(0, 3)
             with open('/home/xu/workspace/random.txt', mode='a') as f:
                 f.write(str(random_d))
