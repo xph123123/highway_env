@@ -13,7 +13,7 @@ from highway_env.road.lane import LineType, StraightLane, SineLane
 # 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
 # 7：(eight choices low speed) monte carlo random generate two lane two cars overtaking
 # 8:fixed order to compare
-SCENARIO_OPTION = 8
+SCENARIO_OPTION = 7
 
 class HighwayEnv(AbstractEnv):
     """
@@ -270,8 +270,6 @@ class HighwayEnv(AbstractEnv):
             random_childscenario = random.randint(0, 9)
             # random_childscenario = 2
             random_init_v1_y = random.randint(0, 3)
-            with open('/home/xu/workspace/random.txt', mode='a') as f:
-                f.write(str(random_d))
             d = d_array[random_d]
             D = D_array[random_D]
             delta_v2_v1 = delta_v2_v1_array[random_delta_v2_v1]
@@ -287,7 +285,7 @@ class HighwayEnv(AbstractEnv):
             )
             self.controlled_vehicles.append(controlled_vehicle)
             self.road.vehicles.append(controlled_vehicle)
-            if random_childscenario >= 4:
+            if random_childscenario >= 3:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2 - d, 0], speed=v1 + delta_v3_v1, target_speed=v1 + delta_v3_v1,
                                         enable_lane_change=False)
@@ -298,7 +296,7 @@ class HighwayEnv(AbstractEnv):
                                         enable_lane_change=False, route=[('a', 'b', 1)])
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
-            elif random_childscenario >= 1 and random_childscenario < 4:
+            elif random_childscenario >= 1 and random_childscenario < 3:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
                                         enable_lane_change=False, route=[('a', 'b', 1)])
