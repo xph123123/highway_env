@@ -13,6 +13,7 @@ from highway_env.road.lane import LineType, StraightLane, SineLane
 # 5：two lanes, keep in second lane and left car cut in 6：monte carlo random generate two lane two cars overtaking
 # 7：(eight choices low speed) monte carlo random generate two lane two cars overtaking
 # 8:fixed order to compare
+# 9:不采样速度差，直接采样速度
 SCENARIO_OPTION = 8
 
 class HighwayEnv(AbstractEnv):
@@ -99,7 +100,7 @@ class HighwayEnv(AbstractEnv):
                 net.add_lane("b", "c",StraightLane([sum(ends[:1]), y[i]], [sum(ends[:2]), y[i]], line_types=line_type[i]))
             road = Road(network=net, np_random=self.np_random, record_history=self.config["show_trajectories"])
             self.road = road
-        elif SCENARIO_OPTION == 7 or SCENARIO_OPTION == 8:
+        elif SCENARIO_OPTION == 7 or SCENARIO_OPTION == 8 or SCENARIO_OPTION == 9:
             net = RoadNetwork()
             end = 400
             c, s, n = LineType.CONTINUOUS_LINE, LineType.STRIPED, LineType.NONE
@@ -311,6 +312,7 @@ class HighwayEnv(AbstractEnv):
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
         elif SCENARIO_OPTION == 8:  # 固定测试场景序列
+            xxx = [0,0,53,67,69,76,97,105,122,127]
             d_array = [45, 40, 35, 30, 25, 20, 15, 10, 5, 0, -2]
             D_array = [55, 50, 45, 40, 37.5, 35, 30, 27.5, 25, 22.5, 20, 15, 10]
             delta_v2_v1_array = [0.8, 0.3, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0]
@@ -356,6 +358,83 @@ class HighwayEnv(AbstractEnv):
                     # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
                 )
             elif random_childscenario >= 1 and random_childscenario < 3:
+                self.road.vehicles.append(
+                    other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
+                    # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                )
+            elif random_childscenario == 0:
+                self.road.vehicles.append(
+                    other_vehicles_type(self.road, [d2, v1_y], speed=0, target_speed=0,
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
+                    # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                )
+        elif SCENARIO_OPTION == 9:
+            d_array = [45, 40, 35, 30, 25, 20, 15, 10, 5, 0, -2]
+            D_array = [55, 50, 45, 40, 37.5, 35, 30, 27.5, 25, 22.5, 20, 15, 10]
+            delta_v2_v1_array = [0.8, 0.3, 0, -0.8, -1.0, -1.4, -1.9, -2.5, -3.0]
+            delta_v3_v1_array = [-2.5, -2.0, -1.5, -1.0, -0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+            v1_array = [3, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0]
+            init_v1_y = [2.5, 3.0, 3.5, 4]
+
+            random_d = random.randint(0, 10)
+            random_D = random.randint(0, 12)
+            random_delta_v2_v1 = random.randint(0, 8)
+            random_delta_v3_v1 = random.randint(0, 10)
+            random_v1 = random.randint(0, 16)
+            random_childscenario = random.randint(0, 9)
+            # random_childscenario = 2
+            random_init_v1_y = random.randint(0, 3)
+
+            with open('/home/xu/workspace/random.txt', mode='a') as f:
+                f.write(str(random_d))
+            d = d_array[random_d]
+            D = D_array[random_D]
+            delta_v2_v1 = delta_v2_v1_array[random_delta_v2_v1]
+            delta_v3_v1 = delta_v3_v1_array[random_delta_v3_v1]
+            v1 = v1_array[random_v1]
+            d2 = 70
+            v1_y = init_v1_y[random_init_v1_y]
+            while delta_v2_v1 < 0 and D / (-delta_v2_v1) < 2.0:
+                random_d = random.randint(0, 10)
+                random_D = random.randint(0, 12)
+                random_delta_v2_v1 = random.randint(0, 8)
+                random_delta_v3_v1 = random.randint(0, 10)
+                random_v1 = random.randint(0, 16)
+                random_childscenario = random.randint(0, 9)
+                # random_childscenario = 2
+                random_init_v1_y = random.randint(0, 3)
+
+                with open('/home/xu/workspace/random.txt', mode='a') as f:
+                    f.write(str(random_d))
+                d = d_array[random_d]
+                D = D_array[random_D]
+                delta_v2_v1 = delta_v2_v1_array[random_delta_v2_v1]
+                delta_v3_v1 = delta_v3_v1_array[random_delta_v3_v1]
+                v1 = v1_array[random_v1]
+                d2 = 70
+                v1_y = init_v1_y[random_init_v1_y]
+
+            controlled_vehicle = self.action_type.vehicle_class.make_on_lane(
+                self.road,
+                lane_index=('a', 'b', 1),
+                longitudinal=d2 - D,
+                speed=v1
+            )
+            self.controlled_vehicles.append(controlled_vehicle)
+            self.road.vehicles.append(controlled_vehicle)
+            if random_childscenario >= 4:
+                self.road.vehicles.append(
+                    other_vehicles_type(self.road, [d2 - d, 0], speed=v1 + delta_v3_v1, target_speed=v1 + delta_v3_v1,
+                                        enable_lane_change=False)
+                    # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                )
+                self.road.vehicles.append(
+                    other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
+                                        enable_lane_change=False, route=[('a', 'b', 1)])
+                    # other_vehicles_type.make_on_lane(cls, road: Road, lane_index: LaneIndex, longitudinal: float, speed: float = 0)
+                )
+            elif random_childscenario >= 1 and random_childscenario < 4:
                 self.road.vehicles.append(
                     other_vehicles_type(self.road, [d2, v1_y], speed=v1 + delta_v2_v1, target_speed=v1 + delta_v2_v1,
                                         enable_lane_change=False, route=[('a', 'b', 1)])
