@@ -222,7 +222,7 @@ class HighwayEnv(AbstractEnv):
         :param action: the last action performed
         :return: the corresponding reward
         """
-        r_unsafe = -0.0
+        r_unsafe = 0.0
         if is_safe == 0:
             return r_unsafe
 
